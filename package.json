@@ -1,0 +1,13 @@
+{
+  "name": "dikxrat-c2",
+  "version": "3.0.0",
+  "description": "DikxRat C2 Control Panel",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "serve": "^14.0.0"
+  }
+}
